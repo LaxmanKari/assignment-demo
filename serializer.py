@@ -60,41 +60,24 @@ def extract_text(file):
 class DocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
-        fields = ["id", "title", "content", "file", "uploaded_at", "owner"]
+        fields = ["id", "title", "content", "uploaded_at", "owner"]
         read_only_fields = ["owner", "uploaded_at"]
         extra_kwargs = {
             "title": {"required": False},
             "content": {"required": False},
         }
 
-    def validate_file(self, file):
-        if file is None:
-            return file
-        ext = Path(file.name).suffix.lower()
-        if ext not in ALLOWED_EXTENSIONS:
-            raise serializers.ValidationError(
-                f"Unsupported file type. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
-            )
-        if file.size > MAX_FILE_SIZE:
-            raise FileTooLarge()  # becomes a 413 response
-        return file
-
     def validate(self, attrs):
-        file = attrs.get("file")
+        title = (attrs.get("title") or "").strip()
         content = (attrs.get("content") or "").strip()
 
-        if not file and not content:
-            raise serializers.ValidationError(
-                "Send either a file or a JSON body with title and content."
-            )
-
-        if file:
-            attrs.setdefault("title", file.name)
-            if not content:
-                attrs["content"] = extract_text(file)
-        elif not attrs.get("title"):
+        if not title:
             raise serializers.ValidationError({"title": "This field is required."})
+        if not content:
+            raise serializers.ValidationError({"content": "This field is required."})
 
+        attrs["title"] = title
+        attrs["content"] = content
         return attrs
 
 
